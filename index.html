@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>AI Study Planner — DeepSeek + Firebase</title>
+
+<!-- Firebase (compat for simplicity) -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+
+<style>
+:root{--accent:#4285f4;--bg:#f7f7f7;--card-radius:14px}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;background:var(--bg);color:#111}
+header{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.12);height:56px}
+header h1{font-size:16px;margin:0;font-weight:700}
+header .right{display:flex;gap:8px;align-items:center}
+.small-btn{border:none;background:#eee;padding:6px 8px;border-radius:8px;font-size:13px}
+main{padding:12px 12px 120px}
+
+/* tutorial */
+.tutorialOverlay{position:fixed;inset:0;background:#fff;z-index:120;display:none;overflow:hidden}
+.tutorialSlides{display:flex;flex-direction:row;width:500%;height:100%}
+.tutorialSlide{flex:0 0 100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center}
+.tutorialSlide p{font-size:18px;line-height:1.6;margin:0 0 18px}
+.tutorialNav{position:absolute;bottom:28px;left:0;right:0;display:flex;justify-content:center;gap:12px}
+
+/* cards */
+.card-container{display:flex;gap:12px;overflow-x:auto;padding:12px 4px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.day-card{flex:0 0 78%;min-width:78%;background:#fff;border-radius:var(--card-radius);padding:14px;box-shadow:0 6px 18px rgba(0,0,0,0.12);scroll-snap-align:start;min-height:160px;transition:background .2s}
+.day-card h3{margin:0 0 8px;font-size:16px}
+.day-card p{margin:0;font-size:14px;line-height:1.5}
+
+/* summary */
+.summary-box{display:flex;gap:12px;align-items:flex-start;background:#fff;border-radius:12px;padding:10px 12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin:12px 0}
+.summaryBar{width:6px;background:var(--accent);border-radius:3px}
+.summaryContent{font-size:14px;color:#222;line-height:1.5}
+
+/* chat */
+.chat-box{position:fixed;left:12px;right:12px;bottom:12px;background:transparent;z-index:60}
+.chatInner{background:#fff;border-radius:14px;padding:10px;box-shadow:0 6px 20px rgba(0,0,0,0.12)}
+.chatLog{max-height:180px;overflow:auto;padding:6px 4px;font-size:14px}
+.msg{margin:6px 0;display:block}
+.msg.user{text-align:right}
+.msg.ai{text-align:left;color:var(--accent)}
+.chatControls{display:flex;gap:8px;margin-top:8px}
+input[type=text]{flex:1;padding:10px;border-radius:10px;border:1px solid #ddd;font-size:14px}
+button.primary{background:var(--accent);color:#fff;border:none;padding:10px 12px;border-radius:10px;font-weight:700}
+.smallNote{font-size:12px;color:#666;margin-top:8px}
+.presetRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.presetBtn{padding:8px 10px;border-radius:8px;border:none;background:#f0f6ff;color:var(--accent);font-weight:600}
+.utilRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.chip{padding:6px 10px;background:#fff;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.06);font-size:13px}
+.hidden{display:none}
+.settingsModal{position:fixed;inset:80px 16px 80px 16px;background:#fff;border-radius:12px;z-index:130;padding:12px;box-shadow:0 8px 40px rgba(0,0,0,0.25);overflow:auto}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AI Study Planner</h1>
+  <div class="right">
+    <div id="loginStatus" class="chip">未ログイン</div>
+    <button id="tutorialBtn" class="small-btn" title="チュートリアルを表示">🎓</button>
+    <button id="settingsBtn" class="small-btn" title="設定">⚙️</button>
+    <button id="logoutBtn" class="small-btn hidden">ログアウト</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- auth area -->
+  <div id="authArea">
+    <div style="padding:18px;background:#fff;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,0.06);margin-bottom:12px">
+      <h2 style="margin:0 0 8px">ログイン / 新規登録</h2>
+      <input id="email" type="email" placeholder="メールアドレス" />
+      <input id="password" type="password" placeholder="パスワード（6文字以上）" />
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button id="registerBtn" class="primary">新規登録</button>
+        <button id="loginBtn" class="primary" style="background:#4caf50">ログイン</button>
+      </div>
+      <div id="authMessage" class="smallNote"></div>
+    </div>
+  </div>
+
+  <!-- main UI (hidden until logged in) -->
+  <div id="mainUI" class="hidden">
+    <div class="toolbar" style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+      <div class="chip" id="userInfo">ゲスト</div>
+      <div class="chip" id="cardsCount">カード: 0</div>
+      <div class="chip" id="lastSaved">未保存</div>
+      <div class="chip" id="apiStatus">DeepSeek: 未設定</div>
+    </div>
+
+    <div class="card-container" id="cardContainer" aria-label="学習計画カード"></div>
+
+    <div class="summary-box">
+      <div class="summaryBar"></div>
+      <div class="summaryContent" id="summaryContent">計画がありません。チャットで「京大向け1週間計画を作って」と入力してください。</div>
+    </div>
+
+    <div>
+      <div class="smallNote">色プリセット（ワンクリックで適用）</div>
+      <div class="presetRow" id="presetRow"></div>
+    </div>
+
+    <div class="utilRow" style="margin-top:10px">
+      <button id="replanBtn" class="small-btn">🔁 再計画</button>
+      <button id="saveBtn" class="small-btn">💾 保存</button>
+      <button id="loadBtn" class="small-btn">📂 読込</button>
+      <button id="resetBtn" class="small-btn">🧹 リセット</button>
+      <div style="flex:1"></div>
+      <div class="smallNote">チュートリアルは右上の 🎓 から再表示できます</div>
+    </div>
+  </div>
+
+</main>
+
+<!-- chat floating -->
+<div class="chat-box" role="dialog" aria-label="チャット入力">
+  <div class="chatInner">
+    <div class="chatLog" id="chatLog"></div>
+    <div class="chatControls">
+      <input type="text" id="chatInput" placeholder="例：京大向けの1週間計画を作って">
+      <button class="primary" id="sendBtn">送信</button>
+    </div>
+  </div>
+</div>
+
+<!-- tutorial overlay -->
+<div class="tutorialOverlay" id="tutorialOverlay" role="dialog" aria-label="チュートリアル">
+  <div style="position:relative;height:100%">
+    <div class="tutorialSlides" id="tutorialSlides">
+      <div class="tutorialSlide"><p><strong>横にスワイプ</strong>して1日ごとの学習計画を確認できます。</p><button onclick="tutorialNext()">次へ</button></div>
+      <div class="tutorialSlide"><p>1週間の全体像は要約欄で一目で把握できます（左の青バーがアクセント）。</p><button onclick="tutorialNext()">次へ</button></div>
+      <div class="tutorialSlide"><p>会話で <em>「京大向け1週間計画を作って」</em> と入力するとAIが計画を生成します。</p><button onclick="tutorialNext()">次へ</button></div>
+      <div class="tutorialSlide"><p>会話で <em>「数学を落ち着いた青に」</em> のように指示すると色が変わります。</p><button onclick="tutorialNext()">次へ</button></div>
+      <div class="tutorialSlide"><p>「今日できなかった分を再計画」などでAIが負荷を均等化して再生成します。</p><button onclick="closeTutorial()">スタート</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- settings modal -->
+<div id="settingsModal" class="settingsModal hidden">
+  <h3 style="margin-top:0">設定</h3>
+  <label style="font-weight:700">DeepSeek API Key</label>
+  <input id="deepseekKey" class="saveInput" placeholder="sk-..." />
+  <label style="font-weight:700;margin-top:8px">DeepSeek Endpoint</label>
+  <input id="deepseekEndpoint" class="saveInput" placeholder="https://api.deepseek.com/chat/completions" />
+  <div style="margin-top:10px">
+    <button id="saveSettings" class="primary">保存</button>
+    <button id="closeSettings" class="small-btn">閉じる</button>
+  </div>
+  <div class="smallNote" style="margin-top:8px">※ 本番ではキーはクライアントに直書きしないでください。サーバープロキシ経由で使うことを推奨します。</div>
+</div>
+
+<script>
+// ---------------- Firebase config (your provided values) ----------------
+const firebaseConfig = {
+  apiKey: "AIzaSyBqdk0zmXj0uFxg8jrxg5pqPw-1wfnv0AU",
+  authDomain: "aistudyplan-4eddd.firebaseapp.com",
+  projectId: "aistudyplan-4eddd",
+  storageBucket: "aistudyplan-4eddd.firebasestorage.app",
+  messagingSenderId: "819060793672",
+  appId: "1:819060793672:web:3faff90a721b50da52137d",
+  measurementId: "G-MFZ6PJBRJ0"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ---------------- App state ----------------
+let appState = { plan: [], colors: {}, metadata: {}, user: null };
+let DEEPSEEK_ENDPOINT = localStorage.getItem("deepseekEndpoint") || "https://api.deepseek.com/chat/completions";
+let DEEPSEEK_KEY = localStorage.getItem("deepseekKey") || "";
+
+// system prompt forcing JSON format (from our spec)
+const SYSTEM_PROMPT = `あなたは「AI Study Planner」という学習計画生成アシスタントです。返答は必ずJSONのみで以下のフォーマットで返してください:
+{
+  "action":"createPlan | updatePlan | changeColors | chat | error",
+  "message":"ユーザー向けメッセージ",
+  "plan":[{"day":"Day 1","tasks":{"数学":"...","英語":"..."}}...],
+  "colors":{"数学":"#rrggbb"}
+}
+色は色名・カラーコード・雰囲気ワードをHEXに変換して返すこと。未使用フィールドは空配列か空オブジェクトで返す。`;
+
+// ---------------- UI helpers ----------------
+const el = id => document.getElementById(id);
+function show(id){ el(id).classList.remove("hidden"); }
+function hide(id){ el(id).classList.add("hidden"); }
+
+// ---------------- Auth flows ----------------
+el("registerBtn").addEventListener("click", async ()=>{
+  const email = el("email").value.trim();
+  const pw = el("password").value;
+  if(!email || pw.length < 6) return el("authMessage").innerText = "メールと6文字以上のパスワードを入力してください";
+  try{
+    await auth.createUserWithEmailAndPassword(email, pw);
+    el("authMessage").innerText = "登録成功。ログインしました。";
+  }catch(e){ el("authMessage").innerText = e.message; }
+});
+
+el("loginBtn").addEventListener("click", async ()=>{
+  const email = el("email").value.trim();
+  const pw = el("password").value;
+  if(!email || pw.length < 6) return el("authMessage").innerText = "メールとパスワードを入力してください";
+  try{
+    await auth.signInWithEmailAndPassword(email, pw);
+    el("authMessage").innerText = "ログインしました。";
+  }catch(e){ el("authMessage").innerText = e.message; }
+});
+
+el("logoutBtn").addEventListener("click", ()=> auth.signOut());
+
+// on auth state changed
+auth.onAuthStateChanged(async user => {
+  appState.user = user ? { uid: user.uid, email: user.email } : null;
+  el("loginStatus").textContent = user ? user.email : "未ログイン";
+  el("logoutBtn").classList.toggle("hidden", !user);
+  el("authArea").classList.toggle("hidden", !!user);
+  el("mainUI").classList.toggle("hidden", !user);
+  if(user){
+    el("userInfo").textContent = user.email;
+    // load user plan from firestore if exists
+    try{
+      const doc = await db.collection("users").doc(user.uid).get();
+      if(doc.exists){
+        const data = doc.data();
+        appState.plan = data.plan || [];
+        appState.colors = data.colors || {};
+        appState.metadata = data.metadata || {};
+        renderAppState();
+        appendMsg("ai","ユーザーデータをロードしました");
+      } else {
+        appState.plan = [];
+        appState.colors = {};
+        appState.metadata = {};
+      }
+    }catch(e){
+      console.warn("firestore load err", e);
+      appendMsg("ai","Firestoreの読み込みに失敗しました。ローカルのみで動作します。");
+    }
+  } else {
+    // logged out
+    appState.plan = [];
+    appState.colors = {};
+    renderAppState();
+  }
+});
+
+// ---------------- Render functions ----------------
+function renderPlan(plan){
+  const container = el("cardContainer");
+  container.innerHTML = "";
+  (plan || []).forEach(d=>{
+    const div = document.createElement("div");
+    div.className = "day-card";
+    const subj = Object.keys(d.tasks || {})[0] || "";
+    div.dataset.subject = subj;
+    div.innerHTML = `<h3>${d.day}</h3><p>${Object.keys(d.tasks||{}).map(k=>`${k}：${d.tasks[k]}`).join("<br>")}</p>`;
+    container.appendChild(div);
+  });
+  updateColors(appState.colors || {});
+  el("cardsCount").textContent = "カード: " + ((appState.plan||[]).length);
+}
+
+function updateSummary(plan){
+  if(!plan || plan.length===0){ el("summaryContent").textContent = "計画がありません。チャットで「京大向け1週間計画を作って」と入力してください。"; return; }
+  const lines = plan.flatMap(p=>Object.keys(p.tasks||{}).map(k=>`${k}：${p.tasks[k]}`));
+  const seen={}; const dedup=[];
+  lines.forEach(l=>{ const subj=l.split("：")[0]; if(!seen[subj]){seen[subj]=1; dedup.push(l)}});
+  el("summaryContent").textContent = dedup.join(" / ");
+}
+
+function updateColors(colors){
+  appState.colors = Object.assign({}, appState.colors || {}, colors || {});
+  document.querySelectorAll(".day-card").forEach(card=>{
+    const subj = card.dataset.subject;
+    if(subj && appState.colors[subj]) card.style.background = appState.colors[subj];
+    else card.style.background = "#fff";
+  });
+}
+
+function renderAppState(){
+  renderPlan(appState.plan || []);
+  updateSummary(appState.plan || []);
+  el("lastSaved").textContent = appState.metadata.lastSaved ? new Date(appState.metadata.lastSaved).toLocaleString() : "未保存";
+  el("apiStatus").textContent = DEEPSEEK_KEY ? "DeepSeek: 設定済" : "DeepSeek: 未設定";
+}
+
+// ---------------- Presets ----------------
+const PRESETS = [
+  {name:"落ち着いた青", hex:"#6fa8dc"},
+  {name:"明るい青", hex:"#76baff"},
+  {name:"薄い黄", hex:"#f9d342"},
+  {name:"落ち着いた緑", hex:"#7bbf6a"},
+  {name:"珊瑚オレンジ", hex:"#ff8a65"},
+  {name:"薄紫", hex:"#c28ff0"}
+];
+
+function renderPresets(){
+  const row = el("presetRow"); row.innerHTML="";
+  PRESETS.forEach(p=>{
+    const btn = document.createElement("button"); btn.className="presetBtn"; btn.textContent=p.name;
+    btn.onclick = ()=>{ const subj = prompt("色を適用する科目名を入力してください（例：数学）"); if(!subj) return; updateColors({[subj]:p.hex}); saveToFirestore(); renderAppState(); };
+    row.appendChild(btn);
+  });
+}
+
+// ---------------- DeepSeek call ----------------
+async function callDeepSeek(userText){
+  if(!DEEPSEEK_KEY){
+    // demo fallback
+    if(/計画|1週間/.test(userText)){
+      return {action:"createPlan", message:"デモ：1週間計画を作成しました", plan:[
+        {day:"Day 1", tasks:{"数学":"青チャートII 例題15-20","英語":"シス単100語"}},
+        {day:"Day 2", tasks:{"物理":"セミナー 力学1章","英語":"長文1題"}},
+        {day:"Day 3", tasks:{"数学":"過去問1題","化学":"重要問題集1章"}}
+      ], colors:{}};
+    }
+    if(/再計画|未完了|リプラン/.test(userText)){
+      return {action:"updatePlan", message:"デモ：再計画しました", plan:[
+        {day:"Day 1", tasks:{"数学":"青チャ 例題15-18（残り）","英語":"シス単80語"}},
+        {day:"Day 2", tasks:{"数学":"例題18-25","英語":"長文1題"}}
+      ], colors:{}};
+    }
+    if(/色|青|黄色|落ち着/.test(userText)){
+      return {action:"changeColors", message:"デモ：色を変更しました", plan:[], colors:{"数学":"#6fa8dc"}};
+    }
+    return {action:"chat", message:"デモ応答: 受け取りました", plan:[], colors:{}};
+  }
+
+  const payload = {
+    model: "deepseek-chat",
+    messages: [
+      {role:"system", content: SYSTEM_PROMPT},
+      {role:"user", content: userText}
+    ],
+    max_tokens: 800,
+    temperature: 0.2
+  };
+
+  try{
+    const resp = await fetch(DEEPSEEK_ENDPOINT, {
+      method:"POST",
+      headers: {"Content-Type":"application/json","Authorization":"Bearer " + DEEPSEEK_KEY},
+      body: JSON.stringify(payload)
+    });
+    if(!resp.ok){
+      const txt = await resp.text();
+      console.error("DeepSeek error", resp.status, txt);
+      return {action:"error", message:"DeepSeek API error: " + resp.status, plan:[], colors:{}};
+    }
+    const data = await resp.json();
+    const content = data.choices?.[0]?.message?.content || data.output || "";
+    try{
+      return JSON.parse(content);
+    }catch(e){
+      console.error("parse fail", content);
+      return {action:"error", message:"JSON parse error from DeepSeek", plan:[], colors:{}};
+    }
+  }catch(err){
+    console.error(err);
+    return {action:"error", message: "Network error: " + err.message, plan:[], colors:{}};
+  }
+}
+
+// ---------------- Chat flow ----------------
+el("sendBtn").addEventListener("click", onSend);
+el("chatInput").addEventListener("keydown", (e)=>{ if(e.key==="Enter") onSend(); });
+
+async function onSend(){
+  const text = el("chatInput").value.trim(); if(!text) return;
+  appendMsg("user", text); el("chatInput").value="";
+  appendMsg("ai", "生成中…");
+  const res = await callDeepSeek(text);
+  // remove last "生成中…"
+  const log = el("chatLog");
+  if(log.lastElementChild && log.lastElementChild.textContent.includes("生成中")) log.removeChild(log.lastElementChild);
+
+  if(res.message) appendMsg("ai", res.message);
+  if(res.action === "createPlan" || res.action === "updatePlan"){
+    if(res.plan && res.plan.length){
+      appState.plan = res.plan;
+      renderPlan(appState.plan);
+      updateSummary(appState.plan);
+    }
+    if(res.colors) updateColors(res.colors);
+    saveToFirestore();
+  } else if(res.action === "changeColors"){
+    if(res.colors) updateColors(res.colors);
+    saveToFirestore();
+  } else if(res.action === "chat"){
+    // nothing
+  } else if(res.action === "error"){
+    appendMsg("ai", "エラー: " + (res.message || "不明"));
+  }
+}
+
+function appendMsg(kind, text){
+  const log = el("chatLog");
+  const div = document.createElement("div");
+  div.className = "msg " + (kind==="user"?"user":"ai");
+  div.textContent = (kind==="user"?"あなた：":"AI：") + text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ---------------- Replan button ----------------
+el("replanBtn").addEventListener("click", async ()=>{
+  appendMsg("user", "再計画を依頼しました");
+  appendMsg("ai", "生成中…");
+  const prompt = "再計画: 現在の計画の未完了分を抽出し、翌日以降に移しつつ負荷を均等化してください。現在の計画: " + JSON.stringify(appState.plan || []);
+  const res = await callDeepSeek(prompt);
+  if(res.action === "updatePlan" && res.plan){
+    appState.plan = res.plan;
+    renderPlan(appState.plan);
+    updateSummary(appState.plan);
+    appendMsg("ai", res.message || "再計画しました");
+    if(res.colors) updateColors(res.colors);
+    saveToFirestore();
+  } else {
+    appendMsg("ai", res.message || "再計画に失敗しました");
+  }
+});
+
+// ---------------- Save / Load (Firestore per-user) ----------------
+async function saveToFirestore(){
+  if(!appState.user || !appState.user.uid){
+    localSave();
+    appendMsg("ai", "ローカルに保存しました（ログインするとクラウドに保存されます）");
+    return;
+  }
+  try{
+    const docRef = db.collection("users").doc(appState.user.uid);
+    const payload = { plan: appState.plan, colors: appState.colors, metadata: { lastSaved: new Date().toISOString() } };
+    await docRef.set(payload, {merge:true});
+    appState.metadata.lastSaved = payload.metadata.lastSaved;
+    el("lastSaved").textContent = new Date().toLocaleString();
+    appendMsg("ai", "クラウドに保存しました");
+  }catch(e){
+    console.error("save error", e);
+    appendMsg("ai", "保存に失敗しました（ローカルに保存します）");
+    localSave();
+  }
+}
+
+function localSave(){
+  const payload = { plan: appState.plan, colors: appState.colors, metadata: appState.metadata };
+  localStorage.setItem("localPlan", JSON.stringify(payload));
+  appState.metadata.lastSaved = new Date().toISOString();
+  el("lastSaved").textContent = new Date().toLocaleString();
+}
+
+function loadLocal(){
+  const raw = localStorage.getItem("localPlan");
+  if(!raw) return false;
+  try{
+    const obj = JSON.parse(raw);
+    appState.plan = obj.plan || [];
+    appState.colors = obj.colors || {};
+    appState.metadata = obj.metadata || {};
+    renderAppState();
+    appendMsg("ai", "ローカルデータを読み込みました");
+    return true;
+  }catch(e){ return false; }
+}
+
+el("loadBtn").addEventListener("click", async ()=>{
+  if(appState.user && appState.user.uid){
+    try{
+      const doc = await db.collection("users").doc(appState.user.uid).get();
+      if(doc.exists){
+        const data = doc.data();
+        appState.plan = data.plan || [];
+        appState.colors = data.colors || {};
+        appState.metadata = data.metadata || {};
+        renderAppState();
+        appendMsg("ai", "クラウドから読み込みました");
+        return;
+      }
+    }catch(e){ console.warn(e); }
+  }
+  loadLocal();
+});
+
+el("resetBtn").addEventListener("click", ()=>{
+  if(!confirm("ローカルとクラウド（ログイン時）をリセットしますか？")) return;
+  appState = {plan:[], colors:{}, metadata:{}, user: appState.user};
+  renderAppState();
+  localStorage.removeItem("localPlan");
+  if(appState.user && appState.user.uid){
+    db.collection("users").doc(appState.user.uid).delete().catch(()=>{});
+  }
+  appendMsg("ai", "リセットしました");
+});
+
+// ---------------- Settings modal ----------------
+el("settingsBtn").addEventListener("click", ()=>{
+  el("settingsModal").classList.toggle("hidden");
+  el("deepseekKey").value = DEEPSEEK_KEY;
+  el("deepseekEndpoint").value = DEEPSEEK_ENDPOINT;
+});
+el("closeSettings").addEventListener("click", ()=> el("settingsModal").classList.add("hidden"));
+el("saveSettings").addEventListener("click", ()=>{
+  DEEPSEEK_KEY = el("deepseekKey").value.trim();
+  DEEPSEEK_ENDPOINT = el("deepseekEndpoint").value.trim() || DEEPSEEK_ENDPOINT;
+  localStorage.setItem("deepseekKey", DEEPSEEK_KEY);
+  localStorage.setItem("deepseekEndpoint", DEEPSEEK_ENDPOINT);
+  el("settingsModal").classList.add("hidden");
+  renderAppState();
+  appendMsg("ai", "DeepSeek設定を保存しました");
+});
+
+// ---------------- Tutorial controls ----------------
+let tutIndex = 0;
+const tutSlides = document.querySelectorAll(".tutorialSlide");
+function openTutorial(){ el("tutorialOverlay").style.display = "block"; tutIndex=0; showTut(); }
+function tutorialNext(){ tutIndex++; if(tutIndex >= tutSlides.length) closeTutorial(); else showTut(); }
+function showTut(){ const wrap = el("tutorialSlides"); wrap.style.transform = `translateX(-${tutIndex*100}%)`; tutSlides.forEach((s,i)=> s.style.display = i===tutIndex? "flex":"none"); }
+function closeTutorial(){ el("tutorialOverlay").style.display = "none"; }
+el("tutorialBtn").addEventListener("click", openTutorial);
+if(!localStorage.getItem("tutorialSeen")){ openTutorial(); localStorage.setItem("tutorialSeen","1"); }
+
+// ---------------- Init ----------------
+function appendMsg(kind, text){ const log = el("chatLog"); const div = document.createElement("div"); div.className = "msg " + (kind==="user"?"user":"ai"); div.textContent = (kind==="user"?"あなた：":"AI：") + text; log.appendChild(div); log.scrollTop = log.scrollHeight; }
+el("sendBtn").addEventListener("click", ()=>{ const t = el("chatInput").value.trim(); if(t) { appendMsg("user", t); el("chatInput").value=""; onSend(); } });
+el("chatInput").addEventListener("keydown",(e)=>{ if(e.key==="Enter") { const t = el("chatInput").value.trim(); if(t){ appendMsg("user", t); el("chatInput").value=""; onSend(); } } });
+
+renderPresets();
+renderAppState();
+loadLocal();
+
+</script>
+</body>
+</html>
