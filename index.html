@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Study Planner</title>
+<style>
+body {
+  font-family: sans-serif;
+  padding: 20px;
+}
+textarea {
+  width: 100%;
+  height: 140px;
+}
+#output {
+  white-space: pre-wrap;
+  margin-top: 15px;
+  padding: 10px;
+  border: 1px solid #ccc;
+}
+.hidden {
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<h2>AI Study Planner</h2>
+
+<!-- ▼ ログインエリア ▼ -->
+<div id="auth-section">
+  <h3>ログイン</h3>
+  <input id="email" type="email" placeholder="メールアドレス"><br><br>
+  <input id="password" type="password" placeholder="パスワード"><br><br>
+  <button id="signupBtn">新規登録</button>
+  <button id="loginBtn">ログイン</button>
+</div>
+
+<!-- ▼ アプリ本体 ▼ -->
+<div id="app-section" class="hidden">
+  <h3>DeepSeek 質問</h3>
+  <textarea id="prompt" placeholder="質問を入力…"></textarea><br><br>
+  <button id="askBtn">送信</button>
+
+  <div id="output"></div>
+
+  <br>
+  <button id="logoutBtn">ログアウト</button>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+<script>
+// ---------------- Firebase 設定 ----------------
+const firebaseConfig = {
+  apiKey: "AIzaSyBqdk0zmXj0uFxg8jrxg5pqPw-1wfnv0AU",
+  authDomain: "aistudyplan-4eddd.firebaseapp.com",
+  projectId: "aistudyplan-4eddd",
+  storageBucket: "aistudyplan-4eddd.firebasestorage.app",
+  messagingSenderId: "819060793672",
+  appId: "1:819060793672:web:3faff90a721b50da52137d",
+  measurementId: "G-MFZ6PJBRJ0"
+};
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+
+// ---------------- DeepSeek プロキシ ----------------
+// あなたの Cloudflare Workers URL
+const DEEPSEEK_PROXY = "https://study-plan-ai.mecharhythm.workers.dev/deepseek";
+
+async function askDeepSeek(promptText) {
+  const response = await fetch(DEEPSEEK_PROXY, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ prompt: promptText })
+  });
+
+  const data = await response.json();
+
+  try {
+    return data.choices[0].message.content;
+  } catch {
+    return "エラー：DeepSeek の応答形式が想定外です。\n" + JSON.stringify(data, null, 2);
+  }
+}
+
+// ---------------- ログイン処理 ----------------
+document.getElementById("signupBtn").onclick = async () => {
+  const email = email.value;
+  const pass = password.value;
+  await auth.createUserWithEmailAndPassword(email, pass);
+};
+
+document.getElementById("loginBtn").onclick = async () => {
+  const email = document.getElementById("email").value;
+  const pass = document.getElementById("password").value;
+  await auth.signInWithEmailAndPassword(email, pass);
+};
+
+document.getElementById("logoutBtn").onclick = async () => {
+  await auth.signOut();
+};
+
+// ログイン状態が変わったら UI を切替え
+auth.onAuthStateChanged(user => {
+  if (user) {
+    document.getElementById("auth-section").classList.add("hidden");
+    document.getElementById("app-section").classList.remove("hidden");
+  } else {
+    document.getElementById("auth-section").classList.remove("hidden");
+    document.getElementById("app-section").classList.add("hidden");
+  }
+});
+
+// ---------------- DeepSeek 呼び出し ----------------
+document.getElementById("askBtn").onclick = async () => {
+  const prompt = document.getElementById("prompt").value;
+  document.getElementById("output").innerText = "処理中…";
+
+  const result = await askDeepSeek(prompt);
+  document.getElementById("output").innerText = result;
+};
+</script>
+
+</body>
+</html>
