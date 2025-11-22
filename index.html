@@ -6,6 +6,77 @@
 <title>AI Study Planner</title>
 
 <style>
+  body { font-family: sans-serif; padding: 20px; }
+  .box { max-width: 320px; margin: auto; }
+  #main { display:none; }
+</style>
+</head>
+<body>
+
+<h2>ログイン / 新規登録</h2>
+
+<div id="auth" class="box">
+  <input id="user" placeholder="ユーザーID"><br><br>
+  <input id="pass" placeholder="パスワード" type="password"><br><br>
+
+  <button onclick="login()">ログイン</button>
+  <button onclick="register()">新規登録</button>
+
+  <p id="msg" style="color:red;"></p>
+</div>
+
+<div id="main">
+  <h2>メイン画面</h2>
+  <p>ログイン成功！</p>
+  <button onclick="logout()">ログアウト</button>
+</div>
+
+<script>
+// 新規登録
+function register() {
+  const u = user.value;
+  const p = pass.value;
+
+  if (!u || !p) {
+    msg.textContent = "IDとパスワードを入力してください。";
+    return;
+  }
+
+  if (localStorage.getItem(u)) {
+    msg.textContent = "このIDは既に登録されています。";
+    return;
+  }
+
+  localStorage.setItem(u, p);
+  msg.textContent = "登録完了！ログインできます。";
+}
+
+// ログイン
+function login() {
+  const u = user.value;
+  const p = pass.value;
+
+  const saved = localStorage.getItem(u);
+
+  if (saved === p) {
+    document.getElementById("auth").style.display = "none";
+    document.getElementById("main").style.display = "block";
+  } else {
+    msg.textContent = "IDまたはパスワードが違います。";
+  }
+}
+
+// ログアウト
+function logout() {
+  document.getElementById("auth").style.display = "block";
+  document.getElementById("main").style.display = "none";
+}
+</script>
+
+</body>
+</html>
+
+<style>
     body {
         font-family: sans-serif;
         background: #fff;
@@ -98,59 +169,7 @@
 </header>
 
 <!-- ▼▼ Firebaseログイン ▼▼ -->
-<h2>ログイン / 新規登録</h2>
 
-<div id="auth" class="box">
-  <input id="user" placeholder="ユーザーID"><br><br>
-  <input id="pass" placeholder="パスワード" type="password"><br><br>
-
-  <button onclick="login()">ログイン</button>
-  <button onclick="register()">新規登録</button>
-
-  <p id="msg" style="color:red;"></p>
-</div>
-
-
-<script>
-// 新規登録
-function register() {
-  const u = user.value;
-  const p = pass.value;
-
-  if (!u || !p) {
-    msg.textContent = "IDとパスワードを入力してください。";
-    return;
-  }
-
-  if (localStorage.getItem(u)) {
-    msg.textContent = "このIDは既に登録されています。";
-    return;
-  }
-
-  localStorage.setItem(u, p);
-  msg.textContent = "登録完了！ログインできます。";
-}
-
-// ログイン
-function login() {
-  const u = user.value;
-  const p = pass.value;
-
-  const saved = localStorage.getItem(u);
-
-  if (saved === p) {
-    document.getElementById("auth").style.display = "none";
-    document.getElementById("main").style.display = "block";
-  } else {
-    msg.textContent = "IDまたはパスワードが違います。";
-  }
-}
-
-// ログアウト
-function logout() {
-  document.getElementById("auth").style.display = "block";
-  document.getElementById("main").style.display = "none";
-}
 
 <!-- ▼▼ ログイン後のプランナー画面 ▼▼ -->
 <section id="plannerSection" style="display:none;">
@@ -239,6 +258,7 @@ document.getElementById("tutorialBtn").onclick = () => {
 
 </body>
 </html>
+
 
 
 
