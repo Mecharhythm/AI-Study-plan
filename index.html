@@ -4,143 +4,182 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AI Study Planner</title>
+<style>
+ body {
+     font-family: sans-serif;
+     background: #fff;
+     margin: 0;
+     padding: 0;
+ }
+ header {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     padding: 14px;
+     font-size: 20px;
+     font-weight: bold;
+     background: #ffffff;
+     border-bottom: 1px solid #eee;
+ }
+ #tutorialBtn {
+     font-size: 12px;
+     padding: 4px 6px;
+     border-radius: 6px;
+     border: 1px solid #ccc;
+     background: #f8f8f8;
+ }
+ .hidden { display:none; }
+ #authBox {
+     padding: 20px;
+     max-width: 320px;
+     margin: 40px auto;
+     border: 1px solid #ddd;
+     border-radius: 12px;
+ }
+ #loginMsg {
+     color:red;
+ }
+ #planScroll {
+     display: flex;
+     overflow-x: auto;
+     gap: 12px;
+     padding: 12px;
+     background: #fafafa;
+     border-bottom: 1px solid #ddd;
+ }
+ .plan-card {
+     min-width: 140px;
+     padding: 12px;
+     border-radius: 12px;
+     background: #f0f0f0;
+ }
+ #summaryBox {
+     background: #ffffff;
+     border-top: 1px solid #ddd;
+     border-bottom: 1px solid #ddd;
+     padding: 16px;
+     min-height: 80px;
+     font-size: 15px;
+ }
+ #chatContainer { padding:16px; }
+ #chatLog {
+     height: 180px;
+     overflow-y: auto;
+     border: 1px solid #ccc;
+     padding: 12px;
+     border-radius: 10px;
+     margin-bottom: 10px;
+     background: #fafafa;
+ }
+ #prompt {
+     width: 100%;
+     padding: 10px;
+     border-radius: 8px;
+     border: 1px solid #ccc;
+     margin-bottom: 10px;
+ }
+ #sendBtn {
+     width: 100%;
+     padding: 10px;
+     border-radius: 8px;
+     background: black;
+     color: white;
+     font-size: 16px;
+     border: none;
+ }
+</style>
+</head>
+<body>
 
-
-<div id="auth" class="box">
+<!-- ログイン画面 -->
+<div id="authBox">
   <h2>ログイン / 新規登録</h2>
   <input id="user" placeholder="ユーザーID"><br><br>
   <input id="pass" placeholder="パスワード" type="password"><br><br>
-
-  <button onclick="login()">ログイン</button>
-  <button onclick="register()">新規登録</button>
-
-  <p id="msg" style="color:red;"></p>
-<script>
-
-// 新規登録
-function register() {
-  const u = user.value;
-  const p = pass.value;
-
-  if (!u || !p) {
-    msg.textContent = "IDとパスワードを入力してください。";
-    return;
-  }
-
-  if (localStorage.getItem(u)) {
-    msg.textContent = "このIDは既に登録されています。";
-    return;
-  }
-
-  localStorage.setItem(u, p);
-  msg.textContent = "登録完了！ログインできます。";
-}
-
-// ログイン
-function login() {
-  const u = user.value;
-  const p = pass.value;
-
-  const saved = localStorage.getItem(u);
-
-  if (saved === p) {
-    document.getElementById("auth").style.display = "none";
-    document.getElementById("main").style.display = "block";
-  } else {
-    msg.textContent = "IDまたはパスワードが違います。";
-  }
-}
-
-// ログアウト
-function logout() {
-  document.getElementById("auth").style.display = "block";
-  document.getElementById("main").style.display = "none";
-}
-</script>
+  <button id="loginBtn">ログイン</button>
+  <button id="regBtn">新規登録</button>
+  <p id="loginMsg"></p>
 </div>
 
-<div id="main" style="display:none;">
-<style>
-    body {
-        font-family: sans-serif;
-        background: #fff;
-        margin: 0;
-        padding: 0;
-    }
-    header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 14px;
-        font-size: 20px;
-        font-weight: bold;
-        background: #ffffff;
-        border-bottom: 1px solid #eee;
-    }
-    #tutorialBtn {
-        font-size: 12px;
-        padding: 4px 6px;
-        border-radius: 6px;
-        border: 1px solid #ccc;
-        background: #f8f8f8;
-    }
-    #loginSection, #plannerSection {
-        padding: 16px;
-    }
+<!-- メインUI -->
+<div id="mainApp" class="hidden">
+  <header>
+    AI Study Planner
+    <button id="tutorialBtn">？使い方</button>
+  </header>
 
-    /* 横スクロール学習計画表 */
-    #planScroll {
-        display: flex;
-        overflow-x: auto;
-        gap: 12px;
-        padding: 12px;
-        background: #fafafa;
-        border-bottom: 1px solid #ddd;
-    }
-    .plan-card {
-        min-width: 140px;
-        padding: 12px;
-        border-radius: 12px;
-        background: #f0f0f0;
-    }
+<!-- ▼▼ ログイン後のプランナー画面（常に #main 内に配置） ▼▼ -->
+<section id="plannerSection" style="display:none;">
+    <div id="planScroll"></div>
+    <div id="summaryBox">ここにAIが簡潔な要約を表示します</div>
+    <div id="chatContainer">
+        <div id="chatLog"></div>
+        <textarea id="prompt" placeholder="例：今週の数学と化学の学習計画を作って"></textarea>
+        <button id="sendBtn">AIに送信</button>
+    </div>
+</section>
 
-    /* 予定要約欄 */
-    #summaryBox {
-        background: #ffffff;
-        border-top: 1px solid #ddd;
-        border-bottom: 1px solid #ddd;
-        padding: 16px;
-        min-height: 80px;
-        font-size: 15px;
-    }
+  <div id="planScroll">
+    <div class="plan-card">Day1</div>
+    <div class="plan-card">Day2</div>
+    <div class="plan-card">Day3</div>
+  </div>
 
-    /* 会話入力 */
-    #chatContainer {
-        padding: 16px;
-    }
-    #chatLog {
-        height: 180px;
-        overflow-y: auto;
-        border: 1px solid #ccc;
-        padding: 12px;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        background: #fafafa;
-    }
-    #prompt {
-        width: 100%;
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px solid #ccc;
-        margin-bottom: 10px;
-    }
-    #sendBtn {
-        width: 100%;
-        padding: 10px;
-        border-radius: 8px;
-        background: black;
-        color: white;
-        font-size: 16px;
-        border: none;
-    }
-</style>
+  <div id="summaryBox">
+    ここに学習予定の要約が表示されます。
+  </div>
+
+  <div id="chatContainer">
+    <div id="chatLog"></div>
+    <input id="prompt" placeholder="今日の予定を聞くなど...">
+    <button id="sendBtn">送信</button>
+  </div>
+</div>
+
+<script>
+// ========== ログイン ==========
+const loginBtn = document.getElementById("loginBtn");
+const regBtn = document.getElementById("regBtn");
+const loginMsg = document.getElementById("loginMsg");
+const authBox = document.getElementById("authBox");
+const mainApp = document.getElementById("mainApp");
+
+regBtn.onclick = () => {
+  const u = user.value;
+  const p = pass.value;
+  if(!u || !p){ loginMsg.textContent = "IDとパスワードを入力してください"; return; }
+  if(localStorage.getItem(u)){ loginMsg.textContent = "このIDは既に使われています"; return; }
+  localStorage.setItem(u, p);
+  loginMsg.textContent = "登録完了！ログインできます";
+};
+
+loginBtn.onclick = () => {
+  const u = user.value;
+  const p = pass.value;
+  const stored = localStorage.getItem(u);
+  if(stored === p){
+      authBox.classList.add("hidden");
+      mainApp.classList.remove("hidden");
+  } else {
+      loginMsg.textContent = "IDまたはパスワードが違います";
+  }
+};
+
+// ========== チャット簡易動作 ==========
+document.getElementById("sendBtn").onclick = () => {
+  const log = document.getElementById("chatLog");
+  const text = prompt.value;
+  if(!text) return;
+  log.innerHTML += `<div>あなた: ${text}</div>`;
+  log.innerHTML += `<div>AI: OK! 「${text}」を受け付けました。</div>`;
+  prompt.value = "";
+};
+
+// ========== チュートリアル表示 ==========
+document.getElementById("tutorialBtn").onclick = () => {
+  alert("使い方:\n1. 学習計画カードを横にスクロール\n2. 質問をAIに送信\n3. 下に要約が表示されます");
+};
+</script>
+
+</body>
+</html>
