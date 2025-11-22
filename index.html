@@ -5,24 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AI Study Planner</title>
 <style>
-body { font-family: sans-serif; padding: 20px; }
-textarea { width: 100%; height: 140px; }
-#output, #error-box {
+body {
+  font-family: sans-serif;
+  padding: 20px;
+}
+textarea {
+  width: 100%;
+  height: 140px;
+}
+#output {
   white-space: pre-wrap;
   margin-top: 15px;
   padding: 10px;
   border: 1px solid #ccc;
 }
-.hidden { display: none; }
-#error-box { border-color: #ff5050; color: #b70000; }
+.hidden {
+  display: none;
+}
 </style>
 </head>
 <body>
 
 <h2>AI Study Planner</h2>
-
-<!-- ▼ エラー表示エリア ▼ -->
-<div id="error-box" class="hidden"></div>
 
 <!-- ▼ ログインエリア ▼ -->
 <div id="auth-section">
@@ -50,7 +54,7 @@ textarea { width: 100%; height: 140px; }
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
 <script>
-// ========== Firebase 設定 ==========
+// ---------------- Firebase 設定 ----------------
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBqdk0zmXj0uFxg8jrxg5pqPw-1wfnv0AU",
@@ -65,75 +69,46 @@ firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
 
-// ========== DeepSeek プロキシ ==========
+// ---------------- DeepSeek プロキシ ----------------
+// あなたの Cloudflare Workers URL
 const DEEPSEEK_PROXY = "https://study-plan-ai.mecharhythm.workers.dev/deepseek";
 
-// DeepSeek 呼び出し
 async function askDeepSeek(promptText) {
+  const response = await fetch(DEEPSEEK_PROXY, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ prompt: promptText })
+  });
+
+  const data = await response.json();
+
   try {
-    const response = await fetch(DEEPSEEK_PROXY, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: promptText })
-    });
-
-    const data = await response.json();
-
-    if (data.error) {
-      showError("DeepSeek エラー:\n" + JSON.stringify(data, null, 2));
-      return "DeepSeek error";
-    }
-
     return data.choices[0].message.content;
-  } catch (err) {
-    showError("DeepSeek 通信エラー:\n" + err.message);
+  } catch {
+    return "エラー：DeepSeek の応答形式が想定外です。\n" + JSON.stringify(data, null, 2);
   }
 }
 
-// ========== エラー表示 ==========
-function showError(msg) {
-  const box = document.getElementById("error-box");
-  box.textContent = msg;
-  box.classList.remove("hidden");
-}
-
-function clearError() {
-  const box = document.getElementById("error-box");
-  box.classList.add("hidden");
-  box.textContent = "";
-}
-
-// ========== 認証処理 ==========
+// ---------------- ログイン処理 ----------------
 document.getElementById("signupBtn").onclick = async () => {
-  clearError();
-  const email = document.getElementById("email").value;
-  const pass = document.getElementById("password").value;
-
-  auth.createUserWithEmailAndPassword(email, pass)
-    .catch(err => {
-      showError("新規登録エラー:\n" + err.code + "\n" + err.message);
-    });
+  const email = email.value;
+  const pass = password.value;
+  await auth.createUserWithEmailAndPassword(email, pass);
 };
 
 document.getElementById("loginBtn").onclick = async () => {
-  clearError();
   const email = document.getElementById("email").value;
   const pass = document.getElementById("password").value;
-
-  auth.signInWithEmailAndPassword(email, pass)
-    .catch(err => {
-      showError("ログインエラー:\n" + err.code + "\n" + err.message);
-    });
+  await auth.signInWithEmailAndPassword(email, pass);
 };
 
 document.getElementById("logoutBtn").onclick = async () => {
-  auth.signOut().catch(err => showError("ログアウトエラー:\n" + err.message));
+  await auth.signOut();
 };
 
-// ログイン状態で UI 切り替え
+// ログイン状態が変わったら UI を切替え
 auth.onAuthStateChanged(user => {
   if (user) {
-    clearError();
     document.getElementById("auth-section").classList.add("hidden");
     document.getElementById("app-section").classList.remove("hidden");
   } else {
@@ -142,17 +117,13 @@ auth.onAuthStateChanged(user => {
   }
 });
 
-// ========== DeepSeek ボタン ==========
+// ---------------- DeepSeek 呼び出し ----------------
 document.getElementById("askBtn").onclick = async () => {
-  clearError();
   const prompt = document.getElementById("prompt").value;
-
   document.getElementById("output").innerText = "処理中…";
-  const result = await askDeepSeek(prompt);
 
-  if (result) {
-    document.getElementById("output").innerText = result;
-  }
+  const result = await askDeepSeek(prompt);
+  document.getElementById("output").innerText = result;
 };
 </script>
 
