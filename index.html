@@ -127,32 +127,42 @@
 </div>
 
 <script>
+// ====== DOM取得（重要） ======
+const userInput = document.getElementById("user");
+const passInput = document.getElementById("pass");
+const msgBox = document.getElementById("msg");
+
 // 新規登録
 function register() {
-  const u = user.value;
-  const p = pass.value;
+  const u = userInput.value;
+  const p = passInput.value;
+
   if (!u || !p) {
-    msg.textContent = "IDとパスワードを入力してください。";
+    msgBox.textContent = "IDとパスワードを入力してください。";
     return;
   }
+
   if (localStorage.getItem(u)) {
-    msg.textContent = "このIDは既に登録されています。";
+    msgBox.textContent = "このIDは既に登録されています。";
     return;
   }
+
   localStorage.setItem(u, p);
-  msg.textContent = "登録完了！ログインできます。";
+  msgBox.textContent = "登録完了！ログインできます。";
 }
 
 // ログイン
 function login() {
-  const u = user.value;
-  const p = pass.value;
+  const u = userInput.value;
+  const p = passInput.value;
+
   const saved = localStorage.getItem(u);
+
   if (saved === p) {
     document.getElementById("auth").style.display = "none";
     document.getElementById("main").style.display = "block";
   } else {
-    msg.textContent = "IDまたはパスワードが違います。";
+    msgBox.textContent = "IDまたはパスワードが違います。";
   }
 }
 
@@ -162,15 +172,20 @@ function logout() {
   document.getElementById("main").style.display = "none";
 }
 
-// DeepSeek（Cloudflare Worker経由）
+// ====== DeepSeek（Cloudflare Worker経由） ======
 async function askDeepSeek(prompt) {
-  const response = await fetch("https://study-plan-ai.mecharhythm.workers.dev", {
+  try {
+    const response = await fetch("https://study-plan-ai.mecharhythm.workers.dev", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt })
-  });
-  const data = await response.json();
-  return data.reply;
+    });
+
+    const data = await response.json();
+    return data.reply;
+  } catch (e) {
+    return "⚠ AIサーバーに接続できませんでした。Cloudflare Worker を確認してください。";
+  }
 }
 
 // 送信ボタン
@@ -179,7 +194,9 @@ sendBtn.onclick = async () => {
   if (!input.trim()) return;
 
   chatLog.innerHTML += `<div><b>あなた：</b>${input}</div>`;
+
   const reply = await askDeepSeek(input);
+
   chatLog.innerHTML += `<div><b>AI：</b>${reply}</div>`;
   chatLog.scrollTop = chatLog.scrollHeight;
 
@@ -187,7 +204,7 @@ sendBtn.onclick = async () => {
 
   const card = document.createElement("div");
   card.className = "plan-card";
-  card.innerHTML = reply.substring(0,60) + "...";
+  card.innerHTML = reply.substring(0, 60) + "...";
   planScroll.appendChild(card);
 
   prompt.value = "";
@@ -195,11 +212,7 @@ sendBtn.onclick = async () => {
 
 // チュートリアル
  tutorialBtn.onclick = () => {
-   alert("【使い方】
-1. ログインまたは新規登録
-2. 下の入力欄に学習計画を指示
-3. AI が要約と計画カードを生成
-4. 色分けやカスタム計画も指示可能");
+   alert("【使い方】\n1. ログインまたは新規登録\n2. 下の入力欄に学習計画を指示\n3. AI が要約と計画カードを生成\n4. 色分けやカスタム計画も指示可能");
  };
 </script>
 </body>
