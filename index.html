@@ -69,8 +69,8 @@ function login(){
 }
 function logout(){ document.getElementById("auth").style.display="block"; document.getElementById("main").style.display="none"; }
 
-// ====== DeepSeek API呼び出し ======
-async function askDeepSeek(input){
+// ====== Forefront API呼び出し ======
+async function askForefront(input){
   try{
     const res = await fetch("https://study-plan-ai.mecharhythm.workers.dev", {
       method:"POST",
@@ -94,7 +94,7 @@ document.getElementById("sendBtn").onclick=async()=>{
   const planScroll=document.getElementById("planScroll");
 
   chatLog.innerHTML+=`<div><b>あなた：</b>${input}</div>`;
-  const reply=await askDeepSeek(input);
+  const reply=await askForefront(input);
   chatLog.innerHTML+=`<div><b>AI：</b>${reply}</div>`;
   chatLog.scrollTop=chatLog.scrollHeight;
 
