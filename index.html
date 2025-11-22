@@ -5,94 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AI Study Planner</title>
 <style>
-  body {
-    font-family: sans-serif;
-    background: #fff;
-    margin: 0;
-    padding: 0;
-  }
-  header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 14px;
-    font-size: 20px;
-    font-weight: bold;
-    background: #ffffff;
-    border-bottom: 1px solid #eee;
-  }
-  #tutorialBtn {
-    font-size: 12px;
-    padding: 4px 6px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    background: #f8f8f8;
-  }
-  #auth {
-    padding: 20px;
-  }
-  #auth input {
-    padding: 10px;
-    width: 90%;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-  }
-  #auth button {
-    padding: 10px;
-    margin-top: 10px;
-    width: 45%;
-    border-radius: 8px;
-  }
-  #planScroll {
-    display: flex;
-    overflow-x: auto;
-    gap: 12px;
-    padding: 12px;
-    background: #fafafa;
-    border-bottom: 1px solid #ddd;
-  }
-  .plan-card {
-    min-width: 140px;
-    padding: 12px;
-    border-radius: 12px;
-    background: #f0f0f0;
-  }
-  #summaryBox {
-    background: #ffffff;
-    border-top: 1px solid #ddd;
-    border-bottom: 1px solid #ddd;
-    padding: 16px;
-    min-height: 80px;
-    font-size: 15px;
-  }
-  #chatContainer {
-    padding: 16px;
-  }
-  #chatLog {
-    height: 180px;
-    overflow-y: auto;
-    border: 1px solid #ccc;
-    padding: 12px;
-    border-radius: 10px;
-    margin-bottom: 10px;
-    background: #fafafa;
-  }
-  #prompt {
-    width: 100%;
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    margin-bottom: 10px;
-  }
-  #sendBtn {
-    width: 100%;
-    padding: 10px;
-    border-radius: 8px;
-    background: black;
-    color: white;
-    font-size: 16px;
-    border: none;
-  }
+  body { font-family: sans-serif; background: #fff; margin:0; padding:0; }
+  header { display:flex; justify-content:space-between; align-items:center; padding:14px; font-size:20px; font-weight:bold; background:#fff; border-bottom:1px solid #eee; }
+  #tutorialBtn { font-size:12px; padding:4px 6px; border-radius:6px; border:1px solid #ccc; background:#f8f8f8; }
+  #auth { padding:20px; }
+  #auth input { padding:10px; width:90%; border-radius:8px; border:1px solid #ccc; }
+  #auth button { padding:10px; margin-top:10px; width:45%; border-radius:8px; }
+  #planScroll { display:flex; overflow-x:auto; gap:12px; padding:12px; background:#fafafa; border-bottom:1px solid #ddd; }
+  .plan-card { min-width:140px; padding:12px; border-radius:12px; background:#f0f0f0; }
+  #summaryBox { background:#fff; border-top:1px solid #ddd; border-bottom:1px solid #ddd; padding:16px; min-height:80px; font-size:15px; }
+  #chatContainer { padding:16px; }
+  #chatLog { height:180px; overflow-y:auto; border:1px solid #ccc; padding:12px; border-radius:10px; margin-bottom:10px; background:#fafafa; }
+  #prompt { width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; margin-bottom:10px; }
+  #sendBtn { width:100%; padding:10px; border-radius:8px; background:black; color:white; font-size:16px; border:none; }
 </style>
 </head>
 <body>
@@ -132,16 +57,9 @@ function register() {
   const u = document.getElementById("user").value;
   const p = document.getElementById("pass").value;
   const msg = document.getElementById("msg");
-  if (!u || !p) {
-    msg.textContent = "IDとパスワードを入力してください。";
-    return;
-  }
-  if (localStorage.getItem(u)) {
-    msg.textContent = "このIDは既に登録されています。";
-    return;
-  }
-  localStorage.setItem(u, p);
-  msg.textContent = "登録完了！ログインできます。";
+  if (!u || !p) { msg.textContent="IDとパスワードを入力してください。"; return; }
+  if (localStorage.getItem(u)) { msg.textContent="このIDは既に登録されています。"; return; }
+  localStorage.setItem(u,p); msg.textContent="登録完了！ログインできます。";
 }
 
 function login() {
@@ -149,30 +67,26 @@ function login() {
   const p = document.getElementById("pass").value;
   const msg = document.getElementById("msg");
   const saved = localStorage.getItem(u);
-  if (saved === p) {
-    document.getElementById("auth").style.display = "none";
-    document.getElementById("main").style.display = "block";
-  } else {
-    msg.textContent = "IDまたはパスワードが違います。";
-  }
+  if(saved===p){ document.getElementById("auth").style.display="none"; document.getElementById("main").style.display="block"; }
+  else msg.textContent="IDまたはパスワードが違います。";
 }
 
 function logout() {
-  document.getElementById("auth").style.display = "block";
-  document.getElementById("main").style.display = "none";
+  document.getElementById("auth").style.display="block";
+  document.getElementById("main").style.display="none";
 }
 
 // ====== DeepSeek（Cloudflare Worker経由） ======
-async function askDeepSeek(userPrompt) {
-  try {
-    const response = await fetch("https://study-plan-ai.mecharhythm.workers.dev", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: userPrompt })
+async function askDeepSeek(userInput){
+  try{
+    const res = await fetch("https://study-plan-ai.mecharhythm.workers.dev", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ prompt: userInput })
     });
-    const data = await response.json();
+    const data = await res.json();
     return data.reply;
-  } catch (e) {
+  }catch(e){
     return "⚠ AIサーバーに接続できませんでした。Cloudflare Worker を確認してください。";
   }
 }
@@ -180,30 +94,28 @@ async function askDeepSeek(userPrompt) {
 // ====== 送信ボタン処理 ======
 document.getElementById("sendBtn").onclick = async () => {
   const userInput = document.getElementById("prompt").value;
-  if (!userInput.trim()) return;
+  if(!userInput.trim()) return;
 
   const chatLog = document.getElementById("chatLog");
   const summaryBox = document.getElementById("summaryBox");
   const planScroll = document.getElementById("planScroll");
 
   chatLog.innerHTML += `<div><b>あなた：</b>${userInput}</div>`;
-
   const reply = await askDeepSeek(userInput);
-
   chatLog.innerHTML += `<div><b>AI：</b>${reply}</div>`;
   chatLog.scrollTop = chatLog.scrollHeight;
 
   summaryBox.innerText = reply;
 
   const card = document.createElement("div");
-  card.className = "plan-card";
-  card.innerHTML = reply.substring(0, 60) + "...";
+  card.className="plan-card";
+  card.innerHTML = reply.substring(0,60)+"...";
   planScroll.appendChild(card);
 
-  document.getElementById("prompt").value = "";
+  document.getElementById("prompt").value="";
 };
 
-// ====== チュートリアルボタン ======
+// ====== チュートリアル ======
 document.getElementById("tutorialBtn").onclick = () => {
   alert("【使い方】\n1. ログインまたは新規登録\n2. 下の入力欄に学習計画を指示\n3. AI が要約と計画カードを生成\n4. 色分けやカスタム計画も指示可能");
 };
