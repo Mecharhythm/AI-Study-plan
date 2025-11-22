@@ -22,7 +22,6 @@
 </head>
 <body>
 
-<!-- ログイン画面 -->
 <div id="auth">
   <h2>ログイン / 新規登録</h2>
   <input id="user" placeholder="ユーザーID"><br><br>
@@ -32,7 +31,6 @@
   <p id="msg" style="color:red;"></p>
 </div>
 
-<!-- メイン画面 -->
 <div id="main" style="display:none;">
   <header>
     AI Study Planner
@@ -52,71 +50,66 @@
 </div>
 
 <script>
-// ====== ユーザー登録・ログイン ======
-function register() {
-  const u = document.getElementById("user").value;
-  const p = document.getElementById("pass").value;
-  const msg = document.getElementById("msg");
-  if (!u || !p) { msg.textContent="IDとパスワードを入力してください。"; return; }
-  if (localStorage.getItem(u)) { msg.textContent="このIDは既に登録されています。"; return; }
-  localStorage.setItem(u,p); msg.textContent="登録完了！ログインできます。";
+// ====== ユーザー管理 ======
+function register(){
+  const u=document.getElementById("user").value;
+  const p=document.getElementById("pass").value;
+  const msg=document.getElementById("msg");
+  if(!u||!p){ msg.textContent="IDとパスワードを入力してください"; return; }
+  if(localStorage.getItem(u)){ msg.textContent="このIDは既に登録されています"; return; }
+  localStorage.setItem(u,p); msg.textContent="登録完了！ログインできます";
 }
-
-function login() {
-  const u = document.getElementById("user").value;
-  const p = document.getElementById("pass").value;
-  const msg = document.getElementById("msg");
-  const saved = localStorage.getItem(u);
+function login(){
+  const u=document.getElementById("user").value;
+  const p=document.getElementById("pass").value;
+  const msg=document.getElementById("msg");
+  const saved=localStorage.getItem(u);
   if(saved===p){ document.getElementById("auth").style.display="none"; document.getElementById("main").style.display="block"; }
-  else msg.textContent="IDまたはパスワードが違います。";
+  else msg.textContent="IDまたはパスワードが違います";
 }
+function logout(){ document.getElementById("auth").style.display="block"; document.getElementById("main").style.display="none"; }
 
-function logout() {
-  document.getElementById("auth").style.display="block";
-  document.getElementById("main").style.display="none";
-}
-
-// ====== DeepSeek（Cloudflare Worker経由） ======
-async function askDeepSeek(userInput){
+// ====== DeepSeek API呼び出し ======
+async function askDeepSeek(input){
   try{
     const res = await fetch("https://study-plan-ai.mecharhythm.workers.dev", {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ prompt: userInput })
+      body: JSON.stringify({ prompt: input })
     });
     const data = await res.json();
     return data.reply;
   }catch(e){
-    return "⚠ AIサーバーに接続できませんでした。Cloudflare Worker を確認してください。";
+    return "⚠ AIサーバーに接続できませんでした。Workerを確認してください";
   }
 }
 
-// ====== 送信ボタン処理 ======
-document.getElementById("sendBtn").onclick = async () => {
-  const userInput = document.getElementById("prompt").value;
-  if(!userInput.trim()) return;
+// ====== 送信ボタン ======
+document.getElementById("sendBtn").onclick=async()=>{
+  const input=document.getElementById("prompt").value;
+  if(!input.trim()) return;
 
-  const chatLog = document.getElementById("chatLog");
-  const summaryBox = document.getElementById("summaryBox");
-  const planScroll = document.getElementById("planScroll");
+  const chatLog=document.getElementById("chatLog");
+  const summaryBox=document.getElementById("summaryBox");
+  const planScroll=document.getElementById("planScroll");
 
-  chatLog.innerHTML += `<div><b>あなた：</b>${userInput}</div>`;
-  const reply = await askDeepSeek(userInput);
-  chatLog.innerHTML += `<div><b>AI：</b>${reply}</div>`;
-  chatLog.scrollTop = chatLog.scrollHeight;
+  chatLog.innerHTML+=`<div><b>あなた：</b>${input}</div>`;
+  const reply=await askDeepSeek(input);
+  chatLog.innerHTML+=`<div><b>AI：</b>${reply}</div>`;
+  chatLog.scrollTop=chatLog.scrollHeight;
 
-  summaryBox.innerText = reply;
+  summaryBox.innerText=reply;
 
-  const card = document.createElement("div");
+  const card=document.createElement("div");
   card.className="plan-card";
-  card.innerHTML = reply.substring(0,60)+"...";
+  card.innerHTML=reply.substring(0,60)+"...";
   planScroll.appendChild(card);
 
   document.getElementById("prompt").value="";
 };
 
 // ====== チュートリアル ======
-document.getElementById("tutorialBtn").onclick = () => {
+document.getElementById("tutorialBtn").onclick=()=>{
   alert("【使い方】\n1. ログインまたは新規登録\n2. 下の入力欄に学習計画を指示\n3. AI が要約と計画カードを生成\n4. 色分けやカスタム計画も指示可能");
 };
 </script>
