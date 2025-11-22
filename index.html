@@ -127,60 +127,49 @@
 </div>
 
 <script>
-// ====== DOM取得（重要） ======
-const userInput = document.getElementById("user");
-const passInput = document.getElementById("pass");
-const msgBox = document.getElementById("msg");
-
-// 新規登録
+// ====== ユーザー登録・ログイン ======
 function register() {
-  const u = userInput.value;
-  const p = passInput.value;
-
+  const u = document.getElementById("user").value;
+  const p = document.getElementById("pass").value;
+  const msg = document.getElementById("msg");
   if (!u || !p) {
-    msgBox.textContent = "IDとパスワードを入力してください。";
+    msg.textContent = "IDとパスワードを入力してください。";
     return;
   }
-
   if (localStorage.getItem(u)) {
-    msgBox.textContent = "このIDは既に登録されています。";
+    msg.textContent = "このIDは既に登録されています。";
     return;
   }
-
   localStorage.setItem(u, p);
-  msgBox.textContent = "登録完了！ログインできます。";
+  msg.textContent = "登録完了！ログインできます。";
 }
 
-// ログイン
 function login() {
-  const u = userInput.value;
-  const p = passInput.value;
-
+  const u = document.getElementById("user").value;
+  const p = document.getElementById("pass").value;
+  const msg = document.getElementById("msg");
   const saved = localStorage.getItem(u);
-
   if (saved === p) {
     document.getElementById("auth").style.display = "none";
     document.getElementById("main").style.display = "block";
   } else {
-    msgBox.textContent = "IDまたはパスワードが違います。";
+    msg.textContent = "IDまたはパスワードが違います。";
   }
 }
 
-// ログアウト
 function logout() {
   document.getElementById("auth").style.display = "block";
   document.getElementById("main").style.display = "none";
 }
 
 // ====== DeepSeek（Cloudflare Worker経由） ======
-async function askDeepSeek(prompt) {
+async function askDeepSeek(userPrompt) {
   try {
     const response = await fetch("https://study-plan-ai.mecharhythm.workers.dev", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt: userPrompt })
     });
-
     const data = await response.json();
     return data.reply;
   } catch (e) {
@@ -188,14 +177,18 @@ async function askDeepSeek(prompt) {
   }
 }
 
-// 送信ボタン
-sendBtn.onclick = async () => {
-  const input = prompt.value;
-  if (!input.trim()) return;
+// ====== 送信ボタン処理 ======
+document.getElementById("sendBtn").onclick = async () => {
+  const userInput = document.getElementById("prompt").value;
+  if (!userInput.trim()) return;
 
-  chatLog.innerHTML += `<div><b>あなた：</b>${input}</div>`;
+  const chatLog = document.getElementById("chatLog");
+  const summaryBox = document.getElementById("summaryBox");
+  const planScroll = document.getElementById("planScroll");
 
-  const reply = await askDeepSeek(input);
+  chatLog.innerHTML += `<div><b>あなた：</b>${userInput}</div>`;
+
+  const reply = await askDeepSeek(userInput);
 
   chatLog.innerHTML += `<div><b>AI：</b>${reply}</div>`;
   chatLog.scrollTop = chatLog.scrollHeight;
@@ -207,13 +200,13 @@ sendBtn.onclick = async () => {
   card.innerHTML = reply.substring(0, 60) + "...";
   planScroll.appendChild(card);
 
-  prompt.value = "";
+  document.getElementById("prompt").value = "";
 };
 
-// チュートリアル
- tutorialBtn.onclick = () => {
-   alert("【使い方】\n1. ログインまたは新規登録\n2. 下の入力欄に学習計画を指示\n3. AI が要約と計画カードを生成\n4. 色分けやカスタム計画も指示可能");
- };
+// ====== チュートリアルボタン ======
+document.getElementById("tutorialBtn").onclick = () => {
+  alert("【使い方】\n1. ログインまたは新規登録\n2. 下の入力欄に学習計画を指示\n3. AI が要約と計画カードを生成\n4. 色分けやカスタム計画も指示可能");
+};
 </script>
 </body>
 </html>
