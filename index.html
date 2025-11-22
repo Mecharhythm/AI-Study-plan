@@ -5,17 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AI Study Planner</title>
 
-<style>
-  body { font-family: sans-serif; padding: 20px; }
-  .box { max-width: 320px; margin: auto; }
-  #main { display:none; }
-</style>
-</head>
-<body>
-
-<h2>ログイン / 新規登録</h2>
 
 <div id="auth" class="box">
+  <h2>ログイン / 新規登録</h2>
   <input id="user" placeholder="ユーザーID"><br><br>
   <input id="pass" placeholder="パスワード" type="password"><br><br>
 
@@ -70,11 +62,6 @@ function logout() {
 </div>
 
 <div id="main">
-  <h2>メイン画面</h2>
-  <p>ログイン成功！</p>
-  <button onclick="logout()">ログアウト</button>
-</div>
-
 
 <style>
     body {
@@ -189,6 +176,10 @@ function logout() {
 </section>
 
 <script type="module">
+
+  <button onclick="logout()">ログアウト</button>
+</div>
+
 /* ---------------------------
    Firebase初期化
 --------------------------- */
@@ -258,6 +249,7 @@ document.getElementById("tutorialBtn").onclick = () => {
 
 </body>
 </html>
+
 
 
 
