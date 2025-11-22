@@ -4,57 +4,133 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AI Study Planner</title>
+
 <style>
-body {
-  font-family: sans-serif;
-  padding: 20px;
-}
-textarea {
-  width: 100%;
-  height: 140px;
-}
-#output {
-  white-space: pre-wrap;
-  margin-top: 15px;
-  padding: 10px;
-  border: 1px solid #ccc;
-}
-.hidden {
-  display: none;
-}
+    body {
+        font-family: sans-serif;
+        background: #fff;
+        margin: 0;
+        padding: 0;
+    }
+    header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px;
+        font-size: 20px;
+        font-weight: bold;
+        background: #ffffff;
+        border-bottom: 1px solid #eee;
+    }
+    #tutorialBtn {
+        font-size: 12px;
+        padding: 4px 6px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        background: #f8f8f8;
+    }
+    #loginSection, #plannerSection {
+        padding: 16px;
+    }
+
+    /* 横スクロール学習計画表 */
+    #planScroll {
+        display: flex;
+        overflow-x: auto;
+        gap: 12px;
+        padding: 12px;
+        background: #fafafa;
+        border-bottom: 1px solid #ddd;
+    }
+    .plan-card {
+        min-width: 140px;
+        padding: 12px;
+        border-radius: 12px;
+        background: #f0f0f0;
+    }
+
+    /* 予定要約欄 */
+    #summaryBox {
+        background: #ffffff;
+        border-top: 1px solid #ddd;
+        border-bottom: 1px solid #ddd;
+        padding: 16px;
+        min-height: 80px;
+        font-size: 15px;
+    }
+
+    /* 会話入力 */
+    #chatContainer {
+        padding: 16px;
+    }
+    #chatLog {
+        height: 180px;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+        padding: 12px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        background: #fafafa;
+    }
+    #prompt {
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        margin-bottom: 10px;
+    }
+    #sendBtn {
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        background: black;
+        color: white;
+        font-size: 16px;
+        border: none;
+    }
 </style>
 </head>
 <body>
 
-<h2>AI Study Planner</h2>
+<header>
+    AI Study Planner
+    <button id="tutorialBtn">？使い方</button>
+</header>
 
-<!-- ▼ ログインエリア ▼ -->
-<div id="auth-section">
-  <h3>ログイン</h3>
-  <input id="email" type="email" placeholder="メールアドレス"><br><br>
-  <input id="password" type="password" placeholder="パスワード"><br><br>
-  <button id="signupBtn">新規登録</button>
-  <button id="loginBtn">ログイン</button>
-</div>
+<!-- ▼▼ Firebaseログイン ▼▼ -->
+<section id="loginSection">
+    <h2>ログイン / 新規登録</h2>
+    <input id="email" type="email" placeholder="メールアドレス" style="width:100%;padding:10px;margin-bottom:8px;">
+    <input id="password" type="password" placeholder="パスワード" style="width:100%;padding:10px;margin-bottom:8px;">
+    <button onclick="signup()" style="padding:10px;width:100%;margin-bottom:6px;">新規登録</button>
+    <button onclick="login()" style="padding:10px;width:100%;">ログイン</button>
+</section>
 
-<!-- ▼ アプリ本体 ▼ -->
-<div id="app-section" class="hidden">
-  <h3>DeepSeek 質問</h3>
-  <textarea id="prompt" placeholder="質問を入力…"></textarea><br><br>
-  <button id="askBtn">送信</button>
+<!-- ▼▼ ログイン後のプランナー画面 ▼▼ -->
+<section id="plannerSection" style="display:none;">
 
-  <div id="output"></div>
+    <!-- 横スクロール計画 -->
+    <div id="planScroll"></div>
 
-  <br>
-  <button id="logoutBtn">ログアウト</button>
-</div>
+    <!-- 要約 -->
+    <div id="summaryBox">ここにAIが簡潔な要約を表示します</div>
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <!-- 会話UI -->
+    <div id="chatContainer">
+        <div id="chatLog"></div>
+        <textarea id="prompt" placeholder="例：今週の数学と化学の学習計画を作って" ></textarea>
+        <button id="sendBtn">AIに送信</button>
+    </div>
+</section>
 
-<script>
-// ---------------- Firebase 設定 ----------------
+<script type="module">
+/* ---------------------------
+   Firebase初期化
+--------------------------- */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBqdk0zmXj0uFxg8jrxg5pqPw-1wfnv0AU",
@@ -65,65 +141,99 @@ const firebaseConfig = {
   appId: "1:819060793672:web:3faff90a721b50da52137d",
   measurementId: "G-MFZ6PJBRJ0"
 };
-firebase.initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
-const auth = firebase.auth();
+/* ---------------------------
+   ログイン処理
+--------------------------- */
+window.signup = function () {
+    const email = document.getElementById("email").value;
+    const pass = document.getElementById("password").value;
 
-// ---------------- DeepSeek プロキシ ----------------
-// あなたの Cloudflare Workers URL
-const DEEPSEEK_PROXY = "https://study-plan-ai.mecharhythm.workers.dev/deepseek";
-
-async function askDeepSeek(promptText) {
-  const response = await fetch(DEEPSEEK_PROXY, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ prompt: promptText })
-  });
-
-  const data = await response.json();
-
-  try {
-    return data.choices[0].message.content;
-  } catch {
-    return "エラー：DeepSeek の応答形式が想定外です。\n" + JSON.stringify(data, null, 2);
-  }
-}
-
-// ---------------- ログイン処理 ----------------
-document.getElementById("signupBtn").onclick = async () => {
-  const email = email.value;
-  const pass = password.value;
-  await auth.createUserWithEmailAndPassword(email, pass);
+    createUserWithEmailAndPassword(auth, email, pass)
+    .then(() => alert("登録完了！ログインできます"))
+    .catch(e => alert(e.message));
 };
 
-document.getElementById("loginBtn").onclick = async () => {
-  const email = document.getElementById("email").value;
-  const pass = document.getElementById("password").value;
-  await auth.signInWithEmailAndPassword(email, pass);
+window.login = function () {
+    const email = document.getElementById("email").value;
+    const pass = document.getElementById("password").value;
+
+    signInWithEmailAndPassword(auth, email, pass)
+    .catch(e => alert(e.message));
 };
 
-document.getElementById("logoutBtn").onclick = async () => {
-  await auth.signOut();
-};
-
-// ログイン状態が変わったら UI を切替え
-auth.onAuthStateChanged(user => {
-  if (user) {
-    document.getElementById("auth-section").classList.add("hidden");
-    document.getElementById("app-section").classList.remove("hidden");
-  } else {
-    document.getElementById("auth-section").classList.remove("hidden");
-    document.getElementById("app-section").classList.add("hidden");
-  }
+/* ---------------------------
+   ログイン状態の監視
+--------------------------- */
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        document.getElementById("loginSection").style.display = "none";
+        document.getElementById("plannerSection").style.display = "block";
+    }
 });
 
-// ---------------- DeepSeek 呼び出し ----------------
-document.getElementById("askBtn").onclick = async () => {
-  const prompt = document.getElementById("prompt").value;
-  document.getElementById("output").innerText = "処理中…";
+/* ---------------------------
+    DeepSeek への API 呼び出し
+--------------------------- */
+async function askDeepSeek(prompt) {
 
-  const result = await askDeepSeek(prompt);
-  document.getElementById("output").innerText = result;
+    const apiKey = "6bca8b0b-5bd6-4f30-84c0-bc242e746786";  // ←書き換えてね
+
+    const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${6bca8b0b-5bd6-4f30-84c0-bc242e746786}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            model: "deepseek-chat",
+            messages: [{ role: "user", content: prompt }]
+        })
+    });
+
+    const data = await response.json();
+    return data.choices[0].message.content;
+}
+
+/* ---------------------------
+    UIの動作
+--------------------------- */
+
+document.getElementById("sendBtn").onclick = async () => {
+    const input = document.getElementById("prompt").value;
+    if (!input.trim()) return;
+
+    // 会話ログ表示
+    const log = document.getElementById("chatLog");
+    log.innerHTML += `<div><b>あなた：</b>${input}</div>`;
+
+    const reply = await askDeepSeek(input);
+
+    log.innerHTML += `<div><b>AI：</b>${reply}</div>`;
+    log.scrollTop = log.scrollHeight;
+
+    // 要約欄にAIの返答を載せる
+    document.getElementById("summaryBox").innerText = reply;
+
+    // 横スクロールにもカード追加（仮）
+    const planArea = document.getElementById("planScroll");
+    const card = document.createElement("div");
+    card.className = "plan-card";
+    card.innerHTML = reply.substring(0,60) + "...";
+    planArea.appendChild(card);
+
+    document.getElementById("prompt").value = "";
+};
+
+/* ---------------------------
+   チュートリアル
+--------------------------- */
+document.getElementById("tutorialBtn").onclick = () => {
+    alert(
+        "【使い方】\n\n1. まずログイン / 登録\n2. 下の入力欄に『今週の数学を計画して』などと入力\n3. AIが計画を作成し、要約とカードに追加されます\n4. 色分けは「予定を青系で色分けして」などと指示できます"
+    );
 };
 </script>
 
