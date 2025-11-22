@@ -98,13 +98,64 @@
 </header>
 
 <!-- ▼▼ Firebaseログイン ▼▼ -->
-<section id="loginSection">
-    <h2>ログイン / 新規登録</h2>
-    <input id="email" type="email" placeholder="メールアドレス" style="width:100%;padding:10px;margin-bottom:8px;">
-    <input id="password" type="password" placeholder="パスワード" style="width:100%;padding:10px;margin-bottom:8px;">
-    <button onclick="signup()" style="padding:10px;width:100%;margin-bottom:6px;">新規登録</button>
-    <button onclick="login()" style="padding:10px;width:100%;">ログイン</button>
-</section>
+<h2>ログイン / 新規登録</h2>
+
+<div id="auth" class="box">
+  <input id="user" placeholder="ユーザーID"><br><br>
+  <input id="pass" placeholder="パスワード" type="password"><br><br>
+
+  <button onclick="login()">ログイン</button>
+  <button onclick="register()">新規登録</button>
+
+  <p id="msg" style="color:red;"></p>
+</div>
+
+<div id="main">
+  <h2>メイン画面</h2>
+  <p>ログイン成功！</p>
+  <button onclick="logout()">ログアウト</button>
+</div>
+
+<script>
+// 新規登録
+function register() {
+  const u = user.value;
+  const p = pass.value;
+
+  if (!u || !p) {
+    msg.textContent = "IDとパスワードを入力してください。";
+    return;
+  }
+
+  if (localStorage.getItem(u)) {
+    msg.textContent = "このIDは既に登録されています。";
+    return;
+  }
+
+  localStorage.setItem(u, p);
+  msg.textContent = "登録完了！ログインできます。";
+}
+
+// ログイン
+function login() {
+  const u = user.value;
+  const p = pass.value;
+
+  const saved = localStorage.getItem(u);
+
+  if (saved === p) {
+    document.getElementById("auth").style.display = "none";
+    document.getElementById("main").style.display = "block";
+  } else {
+    msg.textContent = "IDまたはパスワードが違います。";
+  }
+}
+
+// ログアウト
+function logout() {
+  document.getElementById("auth").style.display = "block";
+  document.getElementById("main").style.display = "none";
+}
 
 <!-- ▼▼ ログイン後のプランナー画面 ▼▼ -->
 <section id="plannerSection" style="display:none;">
@@ -127,53 +178,6 @@
 /* ---------------------------
    Firebase初期化
 --------------------------- */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "73142f43-0e5b-4539-9fcf-105386e915d1",
-  authDomain: "aistudyplan-4eddd.firebaseapp.com",
-  projectId: "aistudyplan-4eddd",
-  storageBucket: "aistudyplan-4eddd.firebasestorage.app",
-  messagingSenderId: "819060793672",
-  appId: "1:819060793672:web:3faff90a721b50da52137d",
-  measurementId: "G-MFZ6PJBRJ0"
-};
-    
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-/* ---------------------------
-   ログイン処理
---------------------------- */
-window.signup = function () {
-    const email = document.getElementById("email").value;
-    const pass = document.getElementById("password").value;
-
-    createUserWithEmailAndPassword(auth, email, pass)
-    .then(() => alert("登録完了！ログインできます"))
-    .catch(e => alert(e.message));
-};
-
-window.login = function () {
-    const email = document.getElementById("email").value;
-    const pass = document.getElementById("password").value;
-
-    signInWithEmailAndPassword(auth, email, pass)
-    .catch(e => alert(e.message));
-};
-
-/* ---------------------------
-   ログイン状態の監視
---------------------------- */
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        document.getElementById("loginSection").style.display = "none";
-        document.getElementById("plannerSection").style.display = "block";
-    }
-});
 
 /* ---------------------------
     DeepSeek への API 呼び出し
@@ -240,6 +244,7 @@ document.getElementById("tutorialBtn").onclick = () => {
 
 </body>
 </html>
+
 
 
 
