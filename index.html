@@ -23,15 +23,8 @@
   <button onclick="register()">新規登録</button>
 
   <p id="msg" style="color:red;"></p>
-</div>
-
-<div id="main">
-  <h2>メイン画面</h2>
-  <p>ログイン成功！</p>
-  <button onclick="logout()">ログアウト</button>
-</div>
-
 <script>
+
 // 新規登録
 function register() {
   const u = user.value;
@@ -72,6 +65,15 @@ function logout() {
   document.getElementById("main").style.display = "none";
 }
 </script>
+
+
+</div>
+
+<div id="main">
+  <h2>メイン画面</h2>
+  <p>ログイン成功！</p>
+  <button onclick="logout()">ログアウト</button>
+</div>
 
 
 <style>
@@ -256,6 +258,7 @@ document.getElementById("tutorialBtn").onclick = () => {
 
 </body>
 </html>
+
 
 
 
